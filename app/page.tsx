@@ -25,6 +25,7 @@ import { FASHION_FX_SNAPSHOT, formatMediaPrice } from "../src/data/fashion-price
 import { fashionStoreCovers } from "../src/data/fashion-store-covers";
 import { fashionMaterialNoteFor } from "../src/data/fashion-copy";
 import { RouteMap, type RouteMapStop } from "./route-map";
+import "./open-field-brand.css";
 import "./atlas-flow.css";
 
 type PathId = "vintage" | "luxury" | "fused";

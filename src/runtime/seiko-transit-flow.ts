@@ -198,6 +198,15 @@ export const SEIKO_TRANSIT_NODES: SeikoTransitNode[] = [
     mapsUrl: GINZA_STORES[0].mapsUrl,
   },
   {
+    id: "mitsukoshi",
+    name: "Ginza Mitsukoshi Watch Salon",
+    shortName: "Mitsukoshi",
+    kind: "store",
+    latitude: 35.6713,
+    longitude: 139.7658,
+    mapsUrl: GINZA_STORES[4].mapsUrl,
+  },
+  {
     id: "wako",
     name: "Wako Grand Seiko Flagship",
     shortName: "Wako",
@@ -387,6 +396,17 @@ export const ROUTE_LEGS: RouteLeg[] = [
 ];
 
 export const GINZA_STORE_WALK_LEGS: RouteLeg[] = [
+  {
+    id: "matsuya-mitsukoshi",
+    fromId: "matsuya-ginza",
+    toId: "mitsukoshi",
+    encodedShape: "}vg`cA}ktqiGtWpY`AZf@h@d@h@`@d@^d@xQ}Yz@gAtUlVrC|C",
+    displayMinutes: 2,
+    distanceMeters: 194,
+    mode: "walk",
+    source: "Valhalla / OpenStreetMap",
+    timingSource: "Google Maps snapshot",
+  },
   ROUTE_LEGS[0],
   {
     id: "wako-namiki",

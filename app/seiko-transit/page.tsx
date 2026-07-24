@@ -23,13 +23,23 @@ import {
   type StoreId,
   type TransitDisruption,
 } from "../../src/runtime/seiko-transit-flow";
+import { buildWatchExperience } from "../../src/runtime/open-field-experience";
+import {
+  FieldDisclosure,
+  FieldSectionHeading,
+  FieldSourceLink,
+} from "../components/open-field-ui";
 import { SeikoTransitMap } from "./seiko-transit-map";
+import "../open-field-brand.css";
 import "./seiko-transit.css";
 
 const JR_TOKYO_SOURCE = "https://www.jreast.co.jp/estation/stations/1039.html";
 const METRO_GINZA_SOURCE = "https://www.tokyometro.jp/station/ginza/index.html";
 type PanePreset = "balanced" | "map" | "answer" | "details" | "custom";
 type PaneSide = "map-answer" | "answer-details";
+type DisplayRouteId = RouteId | "store-search";
+
+const watchExperience = buildWatchExperience();
 
 const paneSizes: Record<Exclude<PanePreset, "custom">, [number, number, number]> = {
   balanced: [28, 48, 24],
@@ -38,13 +48,20 @@ const paneSizes: Record<Exclude<PanePreset, "custom">, [number, number, number]>
   details: [22, 44, 34],
 };
 
-const routeMeta: Record<RouteId, {
+const routeMeta: Record<DisplayRouteId, {
   label: string;
   eyebrow: string;
   detail: string;
   nodeIds: string[];
   legIds: string[];
 }> = {
+  "store-search": {
+    label: "Possible SBGH343 stores in Ginza",
+    eyebrow: "STORE SEARCH",
+    detail: "Compare visitor offers, then confirm the exact reference before walking.",
+    nodeIds: GINZA_STORES.map((store) => store.id),
+    legIds: GINZA_STORE_WALK_LEGS.map((leg) => leg.id),
+  },
   "metro-direct": {
     label: "Ginza Station → Tokyo Station",
     eyebrow: "FASTEST SIMPLE EXIT",
@@ -128,24 +145,30 @@ export default function SeikoTransitPage() {
   const layoutRef = useRef<HTMLDivElement>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<StoreId>("wako");
   const [stock, setStock] = useState<StockState>("unknown");
-  const [lostMinutes, setLostMinutes] = useState(0);
+  const [lostMinutes] = useState(0);
   const [disruption, setDisruption] = useState<TransitDisruption>("none");
-  const [selectedId, setSelectedId] = useState("matsuya-ginza");
+  const [selectedId, setSelectedId] = useState("mitsukoshi");
   const [previewRoute, setPreviewRoute] = useState<RouteId | null>(null);
   const [panePreset, setPanePreset] = useState<PanePreset>("balanced");
   const [paneShares, setPaneShares] = useState<[number, number, number]>(paneSizes.balanced);
   const [storesOpen, setStoresOpen] = useState(true);
+  const [transportOpen, setTransportOpen] = useState(false);
+  const [airportOpen, setAirportOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
-  const [notice, setNotice] = useState("Choose a store to see its location and route to Tokyo Station.");
+  const [notice, setNotice] = useState("Visitor savings are first. Choose a store to see stock and details.");
   const [mapRevision, setMapRevision] = useState(0);
 
   const plan = useMemo(
     () => buildSeikoTransitPlan({ selectedStoreId, stock, lostMinutes, disruption }),
     [selectedStoreId, stock, lostMinutes, disruption],
   );
-  const activeRouteId = previewRoute ?? plan.recommendedRouteId;
+  const activeRouteId: DisplayRouteId = transportOpen
+    ? (previewRoute ?? plan.recommendedRouteId)
+    : "store-search";
   const activeRoute = routeMeta[activeRouteId];
-  const activeLegs = ROUTE_LEGS.filter((leg) => activeRoute.legIds.includes(leg.id));
+  const activeLegs = activeRouteId === "store-search"
+    ? GINZA_STORE_WALK_LEGS
+    : ROUTE_LEGS.filter((leg) => activeRoute.legIds.includes(leg.id));
   const selectedStore = GINZA_STORES.find((store) => store.id === selectedId);
   const selectedNode = SEIKO_TRANSIT_NODES.find((node) => node.id === selectedId);
   const selectedRouteDetail = routeOnlyDetails[selectedId as keyof typeof routeOnlyDetails];
@@ -228,10 +251,10 @@ export default function SeikoTransitPage() {
     setSelectedStoreId(id);
     setSelectedId(id);
     setStock("unknown");
-    setPreviewRoute(`shop-${id}`);
+    setPreviewRoute(null);
     setMapRevision((current) => current + 1);
     const store = GINZA_STORES.find((candidate) => candidate.id === id)!;
-    setNotice(`${store.shortName} selected. Use the phone icon for stock, or inspect its route to Tokyo Station.`);
+    setNotice(`${store.shortName} selected. Confirm SBGH343 availability before walking.`);
   }
 
   function chooseDirectoryStore(id: (typeof GINZA_STORES)[number]["id"]) {
@@ -241,10 +264,10 @@ export default function SeikoTransitPage() {
     }
     setSelectedId(id);
     setStock("unknown");
-    setPreviewRoute("metro-direct");
+    setPreviewRoute(null);
     setMapRevision((current) => current + 1);
     const store = GINZA_STORES.find((candidate) => candidate.id === id)!;
-    setNotice(`${store.shortName} selected. Use the phone icon to check SBGH343 availability.`);
+    setNotice(`${store.shortName} selected. Confirm SBGH343 availability before walking.`);
   }
 
   function chooseStock(next: StockState) {
@@ -253,16 +276,16 @@ export default function SeikoTransitPage() {
     setMapRevision((current) => current + 1);
     const store = GINZA_STORES.find((candidate) => candidate.id === selectedStoreId)!;
     setNotice(next === "confirmed"
-      ? `${store.shortName} confirmed SBGH343. The map now shows the store detour and hard exit route.`
+      ? `${store.shortName} confirmed SBGH343. You can add the route to Tokyo Station when needed.`
       : next === "unavailable"
         ? `${store.shortName} cannot help. The store detour was removed.`
-        : "Stock is unconfirmed. The departure-first route stays active.");
+        : "Stock is still unconfirmed.");
   }
 
   function submitPrompt() {
     const text = prompt.trim().toLowerCase();
     if (!text) {
-      setNotice("Try “Wako has it,” “Namiki sold out,” or “the Marunouchi Line is delayed.”");
+      setNotice("Ask about visitor savings, a store, stock, or the route to Tokyo Station.");
       return;
     }
     const storeMatch: Array<[RegExp, StoreId]> = [
@@ -280,19 +303,30 @@ export default function SeikoTransitPage() {
     else if (/no stock|sold out|unavailable|doesn.t have/.test(text)) setStock("unavailable");
     if (/marunouchi|metro/.test(text) && /delay|issue|closed|down/.test(text)) setDisruption("marunouchi");
     if (/\bjr\b/.test(text) && /delay|issue|closed|down/.test(text)) setDisruption("jr");
-    if (/15|quarter hour/.test(text)) setLostMinutes(15);
-    else if (/5|five/.test(text)) setLostMinutes(5);
+    if (/route|station|train|metro|marunouchi|\bjr\b|walk/.test(text)) setTransportOpen(true);
+    if (/airport|narita|luggage|ana|flight/.test(text)) {
+      setTransportOpen(true);
+      setAirportOpen(true);
+    }
     setPreviewRoute(null);
     setMapRevision((current) => current + 1);
     setPrompt("");
-    setNotice("Plan updated.");
+    setNotice(
+      matchedStore
+        ? "Showing that store."
+        : /discount|coupon|visitor|foreign|tax|saving|price/.test(text)
+          ? "Visitor savings are first."
+          : /route|station|train|metro|marunouchi|\bjr\b|walk|airport|narita|luggage|ana|flight/.test(text)
+            ? "Travel options are open."
+            : "I can compare visitor savings, possible SBGH343 stores, and an optional route to Tokyo Station.",
+    );
   }
 
   return (
     <main className="seiko-world" style={layoutStyle}>
       <header className="seiko-header">
         <div className="seiko-brand"><strong>OPEN FIELD</strong><span>VISUAL TRAVEL PLANNER</span></div>
-        <div className="seiko-title"><i />GINZA WATCH · AIRPORT PLAN</div>
+        <div className="seiko-title"><i />GINZA · SBGH343</div>
         <nav>
           <a href="/" target="_blank" rel="noreferrer">SHOPPING ROUTE ↗</a>
         </nav>
@@ -302,7 +336,7 @@ export default function SeikoTransitPage() {
         <section className="seiko-map-panel" aria-label="Route map panel">
           <SeikoTransitMap
             nodes={SEIKO_TRANSIT_NODES}
-            candidateLegs={GINZA_STORE_WALK_LEGS}
+            candidateLegs={activeRouteId === "store-search" ? [] : GINZA_STORE_WALK_LEGS}
             routeNodeIds={activeRoute.nodeIds}
             routeLegs={activeLegs}
             routeId={activeRouteId}
@@ -322,7 +356,7 @@ export default function SeikoTransitPage() {
             <span>{activeRoute.eyebrow}</span>
             <strong>{activeRoute.label}</strong>
             <p>{activeRoute.detail}</p>
-            <small>Walking times checked 23 Jul.</small>
+            <small>Walking estimates are snapshots; open live directions before leaving.</small>
           </div>
         </section>
 
@@ -346,8 +380,8 @@ export default function SeikoTransitPage() {
           <div className="answer-scroll">
             <header className="watch-identity">
               <div className="watch-copy">
-                <span>CONFIRMED MODEL</span>
-                <h1>Grand Seiko {GRAND_SEIKO_MODEL.reference}</h1>
+                <span className="of-eyebrow">EXACT REFERENCE</span>
+                <h1 className="of-display">Grand Seiko {GRAND_SEIKO_MODEL.reference}</h1>
                 <h2>{GRAND_SEIKO_MODEL.name}</h2>
                 <p>Light-green dial inspired by young cherry leaves, with a Bright Titanium case and bracelet.</p>
                 <div className="fact-row">
@@ -364,28 +398,51 @@ export default function SeikoTransitPage() {
               </a>
             </header>
 
-            <section className="availability-card">
-              <div>
-                <span>AVAILABILITY</span>
-                <p>SBGH343 is sold through Grand Seiko boutiques, salons and master shops, but branch stock is not published online.</p>
+            <section className="watch-priority-card">
+              <FieldSectionHeading
+                eyebrow="VISITOR SAVINGS"
+                title="Check the department-store offer first"
+                body="The clearest published visitor benefit is at Ginza Mitsukoshi. Confirm the watch is eligible before treating it as a saving."
+              />
+              <div className="benefit-grid">
+                <article className="benefit-card primary of-card">
+                  <span className="of-eyebrow">{watchExperience.primaryBenefit.eyebrow}</span>
+                  <strong>{watchExperience.primaryBenefit.headline}</strong>
+                  <p>{watchExperience.primaryBenefit.body}</p>
+                  <FieldSourceLink href={watchExperience.primaryBenefit.sourceUrl} primary>CHECK TERMS ↗</FieldSourceLink>
+                </article>
+                <article className="benefit-card of-card">
+                  <span className="of-eyebrow">{watchExperience.secondaryBenefit.eyebrow}</span>
+                  <strong>{watchExperience.secondaryBenefit.headline}</strong>
+                  <p>{watchExperience.secondaryBenefit.body}</p>
+                  <FieldSourceLink href={watchExperience.secondaryBenefit.sourceUrl}>WAKO TERMS ↗</FieldSourceLink>
+                </article>
               </div>
             </section>
 
             <section className="store-queue">
-              <header>
-                <div><span>01 · GINZA</span><h2>Stores that may carry SBGH343</h2></div>
-                <button onClick={() => setStoresOpen((current) => !current)} aria-expanded={storesOpen}>{storesOpen ? "ROLL UP" : "SHOW STORES"}</button>
-              </header>
+              <div className="store-queue-heading">
+                <FieldSectionHeading
+                  eyebrow="POSSIBLE STOCK · GINZA"
+                  title={watchExperience.availability.headline}
+                  body={watchExperience.availability.body}
+                />
+                <button onClick={() => setStoresOpen((current) => !current)} aria-expanded={storesOpen}>{storesOpen ? "HIDE" : "SHOW STORES"}</button>
+              </div>
+              <p className="purchase-note">If you buy it, allow at least <strong>{WATCH_PURCHASE_MINUTES} minutes</strong> for bracelet sizing, payment and paperwork.</p>
               {storesOpen && <div className="store-grid">
-                {GINZA_STORES.map((store) => <article key={store.id} className={selectedId === store.id ? "selected" : ""}>
+                {watchExperience.storeCards.map((store) => <article key={store.id} className={selectedId === store.id ? "selected" : ""}>
                   <button onClick={() => chooseDirectoryStore(store.id)} aria-pressed={selectedId === store.id}>
-                    <span>{store.walkMinutes === 0 ? "HERE" : `${store.walkMinutes} MIN FROM MATSUYA`} · {store.hours}</span>
-                    <strong>{store.name}</strong>
+                    <img src={store.imagePath} alt="" loading="lazy" decoding="async" />
+                    <span>
+                      <small>{store.walkMinutes === 0 ? "AT MATSUYA" : `${store.walkMinutes} MIN WALK`} · {store.hours}</small>
+                      <strong>{store.name}</strong>
+                    </span>
                   </button>
-                  {store.benefitSourceUrl && <small>{store.benefit}</small>}
+                  {store.benefitSourceUrl && <p>{store.benefit}</p>}
                   <div>
                     <a className="phone-icon" href={`tel:${store.telephone}`} aria-label={`Phone ${store.name}`} title={`Phone ${store.name}`}>☎</a>
-                    <a href={store.sourceUrl} target="_blank" rel="noreferrer">STORE ↗</a>
+                    <a href={store.storeUrl} target="_blank" rel="noreferrer">STORE ↗</a>
                     {store.benefitSourceUrl && <a href={store.benefitSourceUrl} target="_blank" rel="noreferrer">BENEFIT ↗</a>}
                   </div>
                 </article>)}
@@ -393,12 +450,12 @@ export default function SeikoTransitPage() {
             </section>
 
             {["wako", "namiki", "boutique-ginza", "nisshindo"].includes(selectedId) && <section className="stock-gate">
-              <div><span>02 · STOCK</span><h2>{GINZA_STORES.find((store) => store.id === selectedStoreId)?.shortName}</h2></div>
+              <div><span className="of-eyebrow">STOCK CHECK</span><h2>{GINZA_STORES.find((store) => store.id === selectedStoreId)?.shortName}</h2><p>Allow at least {WATCH_PURCHASE_MINUTES} minutes for bracelet sizing, payment and paperwork if you buy it.</p></div>
               <div>
                 {([
-                  ["unknown", "☎", "Unknown"],
-                  ["confirmed", "Held", "Add to route"],
-                  ["unavailable", "Unavailable", "Remove"],
+                  ["unknown", "☎", "Not checked"],
+                  ["confirmed", "Available", "Store confirmed"],
+                  ["unavailable", "Unavailable", "Skip this store"],
                 ] as Array<[StockState, string, string]>).map(([id, label, note]) => (
                   <button key={id} onClick={() => chooseStock(id)} className={stock === id ? "selected" : ""} aria-pressed={stock === id}>
                     <strong>{label}</strong><span>{note}</span>
@@ -407,56 +464,57 @@ export default function SeikoTransitPage() {
               </div>
             </section>}
 
-            <section className="route-plan">
-              <header>
-                <div><span>03 · ROUTE TO TOKYO STATION</span><h2>{activeRoute.label}</h2></div>
-              </header>
-              <div className="plan-flow">
-                {displaySteps.map((step, index, visibleSteps) => (
-                  <div key={step.id} className={`plan-step ${selectedId === step.nodeId ? "selected" : ""}`}>
-                    <button onClick={() => setSelectedId(step.nodeId)}>
-                      <b>{String(index + 1).padStart(2, "0")}</b>
-                      <span><strong>{step.label}</strong><small>{step.detail}</small></span>
-                      <em>{minutesLabel(step.minutes)}</em>
-                    </button>
-                    {index < visibleSteps.length - 1 && <i />}
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="airport-continuation">
-              <header>
-                <div>
-                  <span>04 · AIRPORT</span>
-                  <h2>Tokyo Station → luggage → Narita → ANA to SFO</h2>
+            <FieldDisclosure
+              title={watchExperience.transport.label}
+              description={watchExperience.transport.description}
+              open={transportOpen}
+              onToggle={setTransportOpen}
+            >
+              <section className="route-plan">
+                <FieldSectionHeading eyebrow="OPTIONAL ROUTE" title={activeRoute.label} />
+                <div className="plan-flow">
+                  {displaySteps.map((step, index, visibleSteps) => (
+                    <div key={step.id} className={`plan-step ${selectedId === step.nodeId ? "selected" : ""}`}>
+                      <button onClick={() => setSelectedId(step.nodeId)}>
+                        <b>{String(index + 1).padStart(2, "0")}</b>
+                        <span><strong>{step.label}</strong><small>{step.detail}</small></span>
+                        <em>{minutesLabel(step.minutes)}</em>
+                      </button>
+                      {index < visibleSteps.length - 1 && <i />}
+                    </div>
+                  ))}
                 </div>
-                <small>ADD FLIGHT TIME TO FINISH TIMING</small>
-              </header>
-              <div className="airport-flow">
-                <article>
-                  <b>01</b>
-                  <div><strong>Collect luggage</strong><p>Add the locker or counter from the storage receipt.</p></div>
-                  <a href={AIRPORT_CONTINUATION.luggageSourceUrl} target="_blank" rel="noreferrer">STORAGE GUIDE ↗</a>
-                </article>
-                <i />
-                <article>
-                  <b>02</b>
-                  <div><strong>Tokyo Station → Narita</strong><p>N’EX: allow at least {AIRPORT_CONTINUATION.naritaExpressFastestMinutes} minutes.</p></div>
-                  <a href={AIRPORT_CONTINUATION.naritaExpressSourceUrl} target="_blank" rel="noreferrer">JR EAST N’EX ↗</a>
-                </article>
-                <i />
-                <article>
-                  <b>03</b>
-                  <div><strong>{AIRPORT_CONTINUATION.targetAirport} · ANA to {AIRPORT_CONTINUATION.destination}</strong><p>Check in at least {AIRPORT_CONTINUATION.internationalCheckinDeadlineMinutes} minutes before departure.</p></div>
-                  <a href={AIRPORT_CONTINUATION.anaAirportSourceUrl} target="_blank" rel="noreferrer">ANA NARITA GUIDE ↗</a>
-                </article>
-              </div>
-              <div className="missing-inputs">
-                <b>ADD</b><span>STORAGE LOCATION</span><span>FLIGHT TIME</span>
-              </div>
-              <p className="purchase-rule">Allow at least <strong>{WATCH_PURCHASE_MINUTES} min</strong> for bracelet sizing, payment and paperwork.</p>
-            </section>
+              </section>
+            </FieldDisclosure>
+
+            <FieldDisclosure
+              title={watchExperience.airport.label}
+              description={watchExperience.airport.description}
+              open={airportOpen}
+              onToggle={setAirportOpen}
+            >
+              <section className="airport-continuation">
+                <div className="airport-flow">
+                  <article>
+                    <b>01</b>
+                    <div><strong>Collect luggage</strong><p>Use the storage receipt for the exact locker or counter.</p></div>
+                    <a href={AIRPORT_CONTINUATION.luggageSourceUrl} target="_blank" rel="noreferrer">GUIDE ↗</a>
+                  </article>
+                  <i />
+                  <article>
+                    <b>02</b>
+                    <div><strong>Tokyo Station → Narita</strong><p>N’EX takes at least {AIRPORT_CONTINUATION.naritaExpressFastestMinutes} minutes.</p></div>
+                    <a href={AIRPORT_CONTINUATION.naritaExpressSourceUrl} target="_blank" rel="noreferrer">JR EAST ↗</a>
+                  </article>
+                  <i />
+                  <article>
+                    <b>03</b>
+                    <div><strong>ANA to {AIRPORT_CONTINUATION.destination}</strong><p>Reconfirm terminal and check-in cutoff with the flight time.</p></div>
+                    <a href={AIRPORT_CONTINUATION.anaAirportSourceUrl} target="_blank" rel="noreferrer">ANA ↗</a>
+                  </article>
+                </div>
+              </section>
+            </FieldDisclosure>
           </div>
         </section>
 
@@ -482,26 +540,36 @@ export default function SeikoTransitPage() {
               <section className="selected-store">
                 <a className="selected-store-photo" href={selectedStore.sourceUrl} target="_blank" rel="noreferrer">
                   <img src={selectedStore.imagePath} alt={selectedStore.imageAlt} loading="lazy" decoding="async" />
-                  <span>OFFICIAL STORE PHOTO ↗</span>
+                  <span>VIEW STORE ↗</span>
                 </a>
-                <small>{selectedStore.walkMinutes} MIN FROM MATSUYA · {selectedStore.hours}</small>
-                <h2>{selectedStore.name}</h2>
+                <span className="of-eyebrow">{selectedStore.walkMinutes === 0 ? "AT MATSUYA" : `${selectedStore.walkMinutes} MIN WALK`} · {selectedStore.hours}</span>
+                <h2 className="of-title">{selectedStore.name}</h2>
+                {selectedStore.benefitSourceUrl ? <div className="selected-benefit">
+                  <span className="of-eyebrow">VISITOR BENEFIT</span>
+                  <p>{selectedStore.benefit}</p>
+                  <a href={selectedStore.benefitSourceUrl} target="_blank" rel="noreferrer">CHECK TERMS ↗</a>
+                </div> : null}
                 <p>{selectedStore.stockNote}</p>
                 <dl>
                   <div><dt>☎</dt><dd><a href={`tel:${selectedStore.telephone}`}>{selectedStore.telephone}</a></dd></div>
                   <div><dt>PRICE</dt><dd>¥1,056,000 list</dd></div>
-                  {selectedStore.benefitSourceUrl && <div><dt>BENEFIT</dt><dd>{selectedStore.benefit}</dd></div>}
                 </dl>
-                {selectedNode && <code>{selectedNode.latitude.toFixed(7)}, {selectedNode.longitude.toFixed(7)}</code>}
                 <a href={selectedStore.sourceUrl} target="_blank" rel="noreferrer">OFFICIAL STORE PAGE ↗</a>
                 <a href={selectedStore.mapsUrl} target="_blank" rel="noreferrer">OPEN LIVE GOOGLE MAPS ↗</a>
-                {selectedStore.benefitSourceUrl && <a href={selectedStore.benefitSourceUrl} target="_blank" rel="noreferrer">BENEFIT DETAILS ↗</a>}
+                <button className="selected-route-action" onClick={() => {
+                  setTransportOpen(true);
+                  setPreviewRoute(
+                    ["wako", "namiki", "boutique-ginza", "nisshindo"].includes(selectedStore.id)
+                      ? `shop-${selectedStore.id as StoreId}`
+                      : "metro-direct",
+                  );
+                  setMapRevision((current) => current + 1);
+                }}>ADD ROUTE TO TOKYO STATION</button>
               </section>
             </> : selectedRouteDetail ? <section className="selected-store">
               <small>{selectedRouteDetail.eyebrow}</small>
               <h2>{selectedRouteDetail.title}</h2>
               <p>{selectedRouteDetail.summary}</p>
-              {selectedNode && <code>{selectedNode.latitude.toFixed(7)}, {selectedNode.longitude.toFixed(7)}</code>}
               <a href={selectedRouteDetail.sourceUrl} target="_blank" rel="noreferrer">{selectedRouteDetail.sourceLabel} ↗</a>
               {selectedNode && <a href={selectedNode.mapsUrl} target="_blank" rel="noreferrer">OPEN LIVE GOOGLE MAPS ↗</a>}
             </section> : null}
@@ -511,8 +579,8 @@ export default function SeikoTransitPage() {
       </div>
 
       <div className="seiko-composer">
-        <div><b>UPDATE</b><span aria-live="polite">{notice}</span></div>
-        <div><input value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") submitPrompt(); }} placeholder="Wako has it / Namiki sold out / Marunouchi is delayed…" aria-label="Change the watch transport plan" /><button onClick={submitPrompt}>SEND</button></div>
+        <div><b>ASK</b><span aria-live="polite">{notice}</span></div>
+        <div><input value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") submitPrompt(); }} placeholder="Ask about visitor savings, stock, a store, or Tokyo Station…" aria-label="Ask about the watch, stores, or onward travel" /><button onClick={submitPrompt}>SEND</button></div>
       </div>
     </main>
   );

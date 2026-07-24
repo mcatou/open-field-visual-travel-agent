@@ -6,6 +6,8 @@ import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { RouteId, RouteLeg, SeikoTransitNode } from "../../src/runtime/seiko-transit-flow";
 
+type MapRouteId = RouteId | "store-search";
+
 const cityContextStyle = {
   version: 8 as const,
   sources: {
@@ -106,8 +108,8 @@ function areaLabel(text: string) {
   return element;
 }
 
-function railCoordinates(routeId: RouteId, nodes: SeikoTransitNode[]): [number, number][] {
-  if (routeId === "walk-direct") return [];
+function railCoordinates(routeId: MapRouteId, nodes: SeikoTransitNode[]): [number, number][] {
+  if (routeId === "walk-direct" || routeId === "store-search") return [];
   const stationId = routeId === "jr-direct" ? "yurakucho-station" : "ginza-station";
   const station = nodes.find((node) => node.id === stationId);
   const tokyo = nodes.find((node) => node.id === "tokyo-station");
@@ -156,7 +158,7 @@ export function SeikoTransitMap({
   candidateLegs: RouteLeg[];
   routeNodeIds: string[];
   routeLegs: RouteLeg[];
-  routeId: RouteId;
+  routeId: MapRouteId;
   selectedId: string;
   expanded: boolean;
   revision: number;

@@ -106,11 +106,15 @@ test("the Ginza store sequence keeps every numbered shop connected with walking 
   assert.deepEqual(
     GINZA_STORE_WALK_LEGS.map((leg) => [leg.fromId, leg.toId, leg.displayMinutes]),
     [
+      ["matsuya-ginza", "mitsukoshi", 2],
       ["matsuya-ginza", "wako", 3],
       ["wako", "namiki", 4],
       ["namiki", "boutique-ginza", 4],
       ["boutique-ginza", "nisshindo", 1],
     ],
   );
+  const mitsukoshi = SEIKO_TRANSIT_NODES.find((node) => node.id === "mitsukoshi");
+  assert.equal(mitsukoshi?.latitude, 35.6713);
+  assert.equal(mitsukoshi?.longitude, 139.7658);
   assert.ok(GINZA_STORE_WALK_LEGS.every((leg) => leg.encodedShape.length > 20));
 });
