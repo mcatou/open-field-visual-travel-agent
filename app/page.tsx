@@ -12,9 +12,11 @@ import { buildFashionDemoFallback } from "../src/runtime/fashion-demo-fallback";
 import { buildVintageDemoFallback } from "../src/runtime/vintage-demo-fallback";
 import { resolveDemoWorkflow } from "../src/runtime/demo-workflow";
 import {
+  buildScopeClarification,
   buildFollowupClientData,
   followupClientDataSchema,
   reconcileFollowupViewState,
+  shouldClarifyShoppingScope,
   shouldAcceptFollowupResponse,
   type FollowupClientData,
 } from "../src/runtime/travel-followup";
@@ -83,6 +85,12 @@ function pathForBranchId(branchId: string): PathId {
   if (branchId === "luxury-first") return "luxury";
   if (branchId === "short-route") return "fused";
   return "vintage";
+}
+
+function branchIdForPath(pathId: PathId) {
+  if (pathId === "luxury") return "luxury-first";
+  if (pathId === "fused") return "short-route";
+  return "vintage-first";
 }
 
 function liveStopsFrom(response: TravelResponse): Record<string, Stop> {
@@ -305,7 +313,7 @@ export default function Home() {
       pendingOptimisticRef.current = false;
       setPlanOrigin((current) => current === "preview" ? "preview" : "last-good");
       setComposerNotice(usedImmediateRoute
-        ? "The visual route is ready from the approved demo snapshot; the live refresh could not connect."
+        ? "Your route is ready; the latest data check could not connect."
         : "The live update could not connect. Your current visual route is unchanged; you can retry.");
       finishRequest();
     }, 0);
@@ -318,7 +326,8 @@ export default function Home() {
   }, [mapMode, mapViewRevision, selectedId]);
 
   function choosePath(next: PathId) {
-    const branch = next === "luxury" ? secondaryBranch : next === "fused" ? shortBranch : primaryBranch;
+    const branchId = branchIdForPath(next);
+    const branch = liveResponse.branches.find((item) => item.id === branchId) ?? primaryBranch;
     setPath(next);
     setRemoved([]);
     setSelectedId(branch.placeIds[0]);
@@ -399,19 +408,26 @@ export default function Home() {
     setPanelOpen(true);
     clearError();
     const requestId = `request-${crypto.randomUUID()}`;
+    const demoWorkflow = resolveDemoWorkflow(visibleQuestion, liveResponse.world.regionId);
+    if (!demoWorkflow && shouldClarifyShoppingScope(visibleQuestion)) {
+      const clarification = buildScopeClarification(liveResponse, visibleQuestion, requestId);
+      setPlanResponse(clarification);
+      setPlanOrigin("last-good");
+      setPrompt("");
+      setComposerNotice("Choose a shopping-route change; your current plan stayed in place.");
+      return;
+    }
+    const optimisticPath = demoWorkflow?.kind === "select_path" ? demoWorkflow.path : null;
+    const selectedBranchId = optimisticPath ? branchIdForPath(optimisticPath) : activeBranch.id;
     const metadata = buildFollowupClientData({
       requestId,
       response: liveResponse,
-      selectedBranchId: activeBranch.id,
+      selectedBranchId,
       removedPlaceIds: removed,
     });
     const baseRevision = liveResponse.interaction.revision;
-    const demoWorkflow = resolveDemoWorkflow(visibleQuestion, liveResponse.world.regionId);
     if (demoWorkflow?.kind === "select_path") {
       choosePath(demoWorkflow.path);
-      setPrompt("");
-      setComposerNotice(demoWorkflow.notice);
-      return;
     }
     const demoRoute = demoWorkflow?.kind === "load_route" ? demoWorkflow.route : null;
     if (demoRoute === "vintage") {
@@ -439,19 +455,10 @@ export default function Home() {
       setMapExpanded(false);
       setMapViewRevision((current) => current + 1);
     }
-    if (demoRoute) {
-      pendingRequestIdRef.current = null;
-      pendingBaseRevisionRef.current = null;
-      pendingOptimisticRef.current = false;
-      setRequestPending(false);
-      setPrompt("");
-      setComposerNotice("Route ready.");
-      return;
-    }
     setPlanOrigin((current) => current === "preview" ? "preview" : "last-good");
     pendingRequestIdRef.current = requestId;
     pendingBaseRevisionRef.current = baseRevision;
-    pendingOptimisticRef.current = false;
+    pendingOptimisticRef.current = Boolean(demoWorkflow);
     setRequestPending(true);
     if (requestTimeoutRef.current !== null) window.clearTimeout(requestTimeoutRef.current);
     requestTimeoutRef.current = window.setTimeout(() => {
@@ -461,15 +468,17 @@ export default function Home() {
       const usedImmediateRoute = pendingOptimisticRef.current;
       pendingOptimisticRef.current = false;
       setComposerNotice(usedImmediateRoute
-        ? "The visual route is ready from the approved demo snapshot. The live refresh timed out, so you can keep exploring or retry."
+        ? "Your route is ready. The latest data check timed out, so you can keep exploring or retry."
         : "The live update timed out. Your current visual route is unchanged; you can retry.");
       void stop();
       finishRequest();
     }, 15000);
     setPrompt("");
-    setComposerNotice(demoRoute
-      ? `${demoRoute === "vintage" ? "Vintage" : "Current-fashion"} route loaded. Checking the live data in the background…`
-      : `Applying “${visibleQuestion}” without rebuilding the interface…`);
+    setComposerNotice(demoWorkflow?.kind === "select_path"
+      ? `${demoWorkflow.notice} Checking the latest route data…`
+      : demoRoute
+        ? `${demoRoute === "vintage" ? "Vintage" : "Current-fashion"} route ready. Checking the latest data…`
+        : "Updating your route…");
     void sendMessage({ text: visibleQuestion }, { metadata }).catch(() => {
       if (pendingRequestIdRef.current !== requestId) return;
       pendingRequestIdRef.current = null;
@@ -478,7 +487,7 @@ export default function Home() {
       pendingOptimisticRef.current = false;
       setPlanOrigin((current) => current === "preview" ? "preview" : "last-good");
       setComposerNotice(usedImmediateRoute
-        ? "The visual route is ready from the approved demo snapshot; the live refresh did not go through."
+        ? "Your route is ready; the latest data check did not go through."
         : "The live update did not go through. Your last valid visual route is unchanged.");
       finishRequest();
     });

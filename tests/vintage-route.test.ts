@@ -13,6 +13,7 @@ test("a pasted vintage query selects the vintage dataset even from an existing f
   assert.equal(regionForShoppingQuestion("Keep this route to three stores", "tokyo-vintage"), "tokyo-vintage");
   assert.equal(regionForShoppingQuestion("Omotesando clothing for US 6-8", "tokyo-fashion"), "tokyo-fashion");
   assert.equal(regionForShoppingQuestion("I’m US 6-8. Show current fashion around Omotesando.", "tokyo-vintage"), "tokyo-fashion");
+  assert.equal(regionForShoppingQuestion("Can you also book a restaurant?", "tokyo-vintage"), "tokyo-vintage");
 });
 
 test("approved vintage rows have precise map, price, brand, and attributed tip data", () => {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { TravelResponse } from "../contracts/travel-response";
+import { travelResponseSchema, type TravelResponse } from "../contracts/travel-response";
 
 export type FollowupMapMode = "plan" | "route" | "place";
 
@@ -17,7 +17,7 @@ export const followupClientDataSchema = z.object({
   protocolVersion: z.literal(1),
   requestId: z.string().min(12).max(80).regex(/^[a-zA-Z0-9_-]+$/),
   baseRevision: z.number().int().nonnegative(),
-  regionId: z.literal("tokyo-fashion"),
+  regionId: z.enum(["tokyo-fashion", "tokyo-vintage"]),
   selectedBranchId: z.string().min(1).max(80),
   removedPlaceIds: z.array(z.string().min(1).max(100)).max(20),
   constraints: z.array(z.object({
@@ -83,4 +83,48 @@ export function reconcileFollowupViewState(
     evidenceOpen: invalidatedPlaceFocus ? false : current.evidenceOpen,
     panelOpen: current.panelOpen,
   };
+}
+
+const SHOPPING_SCOPE_PATTERN = /\b(?:fashion|vintage|thrift|secondhand|archive|shop(?:ping|s)?|store(?:s)?|boutique(?:s)?|designer(?:s)?|brand(?:s)?|clothing|clothes|size|fit|price|budget|route|walk(?:s|ing)?|minute(?:s)?|stop(?:s)?|late|remove|exclude|shorter|fewer|omotesando|aoyama|harajuku|shibuya|tokyo)\b/i;
+
+export function shouldClarifyShoppingScope(question: string) {
+  return !SHOPPING_SCOPE_PATTERN.test(question.trim());
+}
+
+export function buildScopeClarification(
+  current: TravelResponse,
+  question: string,
+  requestId: string,
+): TravelResponse {
+  const vintage = current.world.regionId === "tokyo-vintage";
+  return travelResponseSchema.parse({
+    ...current,
+    id: `${current.id}-scope`,
+    version: current.version + 1,
+    kind: "clarification_choice",
+    question,
+    verdict: "This preview can update the Tokyo shopping route without replacing the current plan.",
+    interaction: {
+      mode: "clarify",
+      requestId,
+      baseRevision: current.interaction.revision,
+      revision: current.interaction.revision + 1,
+      summary: "Kept the current route and offered supported next steps.",
+      appliedActions: [],
+      clarification: {
+        question: "This preview handles Tokyo shopping routes. What would you like to change?",
+        options: vintage
+          ? [
+              "Show a vintage-only route",
+              "Mix fashion and vintage",
+              "Keep walks under 10 minutes",
+            ]
+          : [
+              "Keep it to three stores",
+              "No walk over 10 minutes",
+              "Add vintage shopping",
+            ],
+      },
+    },
+  });
 }

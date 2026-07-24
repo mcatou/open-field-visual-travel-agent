@@ -3,7 +3,7 @@ import test from "node:test";
 import { resolveDemoWorkflow } from "../src/runtime/demo-workflow";
 import { fashionRouteOrder } from "../src/runtime/fashion-route-order";
 
-test("recognized Loom prompts use immediate visual workflows", () => {
+test("recognized Loom prompts select an immediate visual preview while the agent runs", () => {
   assert.deepEqual(
     resolveDemoWorkflow(
       "I’m going to Omotesando and Shibuya. I’m a US size 6–8. What should I look for, and can you show me the styles and stores on a map?",
@@ -20,7 +20,7 @@ test("recognized Loom prompts use immediate visual workflows", () => {
   );
 });
 
-test("quick-action prompts immediately select a visible route branch", () => {
+test("quick-action prompts select the visible route branch used by the durable turn", () => {
   assert.deepEqual(
     resolveDemoWorkflow("Keep this route to three stores.", "tokyo-fashion"),
     {

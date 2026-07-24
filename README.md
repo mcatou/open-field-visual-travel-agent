@@ -6,6 +6,7 @@ Built for the ClickHouse × Trigger.dev AI Hackathon 2026.
 
 ## Demo
 
+- [Try the live app](https://tokyo-route-atlas.sres02301.workers.dev/)
 - [Loom demo](https://www.loom.com/share/4561a55985e1479cbe74cbe8221c9564)
 
 Try Open Field with a request like:
@@ -13,6 +14,8 @@ Try Open Field with a request like:
 > I’m going to Omotesando and Shibuya. I’m a US size 6–8. What should I look for, and can you show me the styles and stores on a map?
 
 Open Field responds with an illustrated route that can be adjusted directly: reduce the number of stops, limit walking time, focus any store on the map, or add vintage shopping as a follow-up.
+
+The public preview is intentionally bounded to Tokyo fashion and vintage shopping. If a question falls outside that scope, it keeps the current route visible and offers supported next steps instead of generating an arbitrary interface.
 
 ![An illustrated Tokyo shopping route with editable stops and walking constraints](docs/images/open-field-route-plan.png)
 
