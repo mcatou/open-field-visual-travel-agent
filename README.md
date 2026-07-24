@@ -8,11 +8,17 @@ Built for the ClickHouse × Trigger.dev AI Hackathon 2026.
 
 - [Loom demo](https://www.loom.com/share/4561a55985e1479cbe74cbe8221c9564)
 
-The strongest demo path is the Tokyo fashion route:
+Try Open Field with a request like:
 
 > I’m going to Omotesando and Shibuya. I’m a US size 6–8. What should I look for, and can you show me the styles and stores on a map?
 
-Then try **Keep it to three stores**, **No walk over 10 minutes**, a store’s **Map** action, and the vintage follow-up.
+Open Field responds with an illustrated route that can be adjusted directly: reduce the number of stops, limit walking time, focus any store on the map, or add vintage shopping as a follow-up.
+
+![An illustrated Tokyo shopping route with editable stops and walking constraints](docs/images/open-field-route-plan.png)
+
+Selecting a store connects the route, map pin, product imagery, and supporting details in one view.
+
+![Open Field showing the route map, linked store cards, and product evidence](docs/images/open-field-map-evidence-view.png)
 
 ## Why this is an agent response
 
@@ -23,7 +29,7 @@ The agent returns a validated visual-response manifest. The client renders that 
 - **OpenAI:** interprets free-form follow-ups and selects bounded tool inputs.
 - **Cloudflare Workers:** serves the vinext application and the session endpoint.
 
-The polished hackathon path also has deterministic, source-backed preview responses so a transient model or network failure cannot erase the last useful visual route.
+A source-backed preview keeps the last valid visual route available if a model or network request fails.
 
 ## Architecture
 
