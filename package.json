@@ -1,0 +1,56 @@
+{
+  "name": "open-field-visual-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An interactive visual travel-planning agent powered by Trigger.dev chat.agent() and ClickHouse.",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
+    "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
+    "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
+    "test": "npm run test:unit && npm run build && node --test tests/rendered-html.test.mjs",
+    "test:unit": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "seed:preview": "tsx scripts/generate-clickhouse-seed.ts",
+    "setup:clickhouse:smoke": "node --env-file=.env.local --import tsx scripts/setup-clickhouse-smoke.ts",
+    "smoke:trigger-agent": "node --env-file=.env.local --import tsx scripts/trigger-agent-smoke.ts",
+    "experiment:research-modes": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs scripts/run-research-mode-experiment.ts",
+    "trigger:dev": "node --env-file=.env.local ./node_modules/trigger.dev/dist/esm/index.js dev",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .trigger"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.71",
+    "@ai-sdk/react": "2.0.93",
+    "@clickhouse/client": "^1.16.0",
+    "@trigger.dev/sdk": "^4.5.4",
+    "ai": "5.0.93",
+    "maplibre-gl": "^6.0.0",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@cloudflare/workers-types": "^4.20260702.1",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.6",
+    "react-server-dom-webpack": "19.2.6",
+    "tailwindcss": "4.2.1",
+    "trigger.dev": "^4.5.4",
+    "tsx": "^4.20.6",
+    "typescript": "5.9.3",
+    "vinext": "0.0.50",
+    "vite": "8.0.13",
+    "wrangler": "4.92.0"
+  },
+  "type": "module"
+}
