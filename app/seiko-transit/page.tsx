@@ -16,7 +16,6 @@ import {
   GRAND_SEIKO_MODEL,
   ROUTE_LEGS,
   SEIKO_TRANSIT_NODES,
-  WATCH_PURCHASE_MINUTES,
   buildSeikoTransitPlan,
   type RouteId,
   type StockState,
@@ -139,6 +138,19 @@ const routeOnlyDetails = {
 
 function minutesLabel(minutes: number) {
   return `${minutes} min`;
+}
+
+function PhoneHandsetIcon() {
+  return (
+    <svg
+      className="phone-handset"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M6.62 10.79a15.46 15.46 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1.02l-2.2 2.2Z" />
+    </svg>
+  );
 }
 
 export default function SeikoTransitPage() {
@@ -352,12 +364,11 @@ export default function SeikoTransitPage() {
               {panePreset === "map" ? "BALANCED VIEW" : "EXPAND MAP"}
             </button>
           </div>
-          <div className="map-panel-bottom">
+          {activeRouteId !== "store-search" ? <div className="map-panel-bottom">
             <span>{activeRoute.eyebrow}</span>
             <strong>{activeRoute.label}</strong>
             <p>{activeRoute.detail}</p>
-            <small>Walking estimates are snapshots; open live directions before leaving.</small>
-          </div>
+          </div> : null}
         </section>
 
         <div
@@ -384,29 +395,27 @@ export default function SeikoTransitPage() {
                 <h1 className="of-display">Grand Seiko {GRAND_SEIKO_MODEL.reference}</h1>
                 <h2>{GRAND_SEIKO_MODEL.name}</h2>
                 <p>Light-green dial inspired by young cherry leaves, with a Bright Titanium case and bracelet.</p>
-                <div className="fact-row">
-                  <b>¥1,056,000</b>
-                  <b>38 MM</b>
-                  <b>BRIGHT TITANIUM BRACELET</b>
-                  <b>HI-BEAT 9S85</b>
-                </div>
+                <dl className="watch-facts">
+                  <div><dt>Price</dt><dd>¥1,056,000</dd></div>
+                  <div><dt>Case</dt><dd>38 mm</dd></div>
+                  <div><dt>Material</dt><dd>Bright Titanium</dd></div>
+                  <div><dt>Movement</dt><dd>Hi-Beat 9S85</dd></div>
+                </dl>
                 <a href={GRAND_SEIKO_MODEL.productUrl} target="_blank" rel="noreferrer">OFFICIAL PRODUCT PAGE ↗</a>
               </div>
               <a className="watch-image" href={GRAND_SEIKO_MODEL.productUrl} target="_blank" rel="noreferrer">
                 <img src="/seiko-transit/sbgh343.png" alt="Official Grand Seiko SBGH343 product image" />
-                <span>EXACT MODEL ↗</span>
               </a>
             </header>
 
             <section className="watch-priority-card">
               <FieldSectionHeading
                 eyebrow="VISITOR SAVINGS"
-                title="Check the department-store offer first"
-                body="The clearest published visitor benefit is at Ginza Mitsukoshi. Confirm the watch is eligible before treating it as a saving."
+                title="Best published visitor offer"
               />
               <div className="benefit-grid">
                 <article className="benefit-card primary of-card">
-                  <span className="of-eyebrow">{watchExperience.primaryBenefit.eyebrow}</span>
+                  <span className="of-eyebrow">GINZA MITSUKOSHI</span>
                   <strong>{watchExperience.primaryBenefit.headline}</strong>
                   <p>{watchExperience.primaryBenefit.body}</p>
                   <FieldSourceLink href={watchExperience.primaryBenefit.sourceUrl} primary>CHECK TERMS ↗</FieldSourceLink>
@@ -422,14 +431,15 @@ export default function SeikoTransitPage() {
 
             <section className="store-queue">
               <div className="store-queue-heading">
-                <FieldSectionHeading
-                  eyebrow="POSSIBLE STOCK · GINZA"
-                  title={watchExperience.availability.headline}
-                  body={watchExperience.availability.body}
-                />
-                <button onClick={() => setStoresOpen((current) => !current)} aria-expanded={storesOpen}>{storesOpen ? "HIDE" : "SHOW STORES"}</button>
+                <div>
+                  <span className="of-eyebrow">POSSIBLE STOCK · GINZA</span>
+                  <h2>Six possible stores</h2>
+                  <p>Branch stock isn’t published. Call before walking.</p>
+                </div>
+                <button onClick={() => setStoresOpen((current) => !current)} aria-expanded={storesOpen}>
+                  {storesOpen ? "Hide" : "Show stores"}
+                </button>
               </div>
-              <p className="purchase-note">If you buy it, allow at least <strong>{WATCH_PURCHASE_MINUTES} minutes</strong> for bracelet sizing, payment and paperwork.</p>
               {storesOpen && <div className="store-grid">
                 {watchExperience.storeCards.map((store) => <article key={store.id} className={selectedId === store.id ? "selected" : ""}>
                   <button onClick={() => chooseDirectoryStore(store.id)} aria-pressed={selectedId === store.id}>
@@ -439,21 +449,22 @@ export default function SeikoTransitPage() {
                       <strong>{store.name}</strong>
                     </span>
                   </button>
-                  {store.benefitSourceUrl && <p>{store.benefit}</p>}
-                  <div>
-                    <a className="phone-icon" href={`tel:${store.telephone}`} aria-label={`Phone ${store.name}`} title={`Phone ${store.name}`}>☎</a>
-                    <a href={store.storeUrl} target="_blank" rel="noreferrer">STORE ↗</a>
-                    {store.benefitSourceUrl && <a href={store.benefitSourceUrl} target="_blank" rel="noreferrer">BENEFIT ↗</a>}
+                  <div className="store-actions">
+                    <a className="phone-action" href={`tel:${store.telephone}`} aria-label={`Call ${store.name}`}>
+                      <PhoneHandsetIcon />
+                      <span>Call</span>
+                    </a>
+                    <a href={store.storeUrl} target="_blank" rel="noreferrer">Store page ↗</a>
                   </div>
                 </article>)}
               </div>}
             </section>
 
             {["wako", "namiki", "boutique-ginza", "nisshindo"].includes(selectedId) && <section className="stock-gate">
-              <div><span className="of-eyebrow">STOCK CHECK</span><h2>{GINZA_STORES.find((store) => store.id === selectedStoreId)?.shortName}</h2><p>Allow at least {WATCH_PURCHASE_MINUTES} minutes for bracelet sizing, payment and paperwork if you buy it.</p></div>
+              <div><span className="of-eyebrow">STOCK CHECK</span><h2>{GINZA_STORES.find((store) => store.id === selectedStoreId)?.shortName}</h2><p>Call first, then mark the result so the route can respond.</p></div>
               <div>
                 {([
-                  ["unknown", "☎", "Not checked"],
+                  ["unknown", "Call first", "Not checked"],
                   ["confirmed", "Available", "Store confirmed"],
                   ["unavailable", "Unavailable", "Skip this store"],
                 ] as Array<[StockState, string, string]>).map(([id, label, note]) => (
@@ -540,7 +551,6 @@ export default function SeikoTransitPage() {
               <section className="selected-store">
                 <a className="selected-store-photo" href={selectedStore.sourceUrl} target="_blank" rel="noreferrer">
                   <img src={selectedStore.imagePath} alt={selectedStore.imageAlt} loading="lazy" decoding="async" />
-                  <span>VIEW STORE ↗</span>
                 </a>
                 <span className="of-eyebrow">{selectedStore.walkMinutes === 0 ? "AT MATSUYA" : `${selectedStore.walkMinutes} MIN WALK`} · {selectedStore.hours}</span>
                 <h2 className="of-title">{selectedStore.name}</h2>
@@ -549,9 +559,9 @@ export default function SeikoTransitPage() {
                   <p>{selectedStore.benefit}</p>
                   <a href={selectedStore.benefitSourceUrl} target="_blank" rel="noreferrer">CHECK TERMS ↗</a>
                 </div> : null}
-                <p>{selectedStore.stockNote}</p>
+                <p>Confirm today’s hours and SBGH343 stock before going.</p>
                 <dl>
-                  <div><dt>☎</dt><dd><a href={`tel:${selectedStore.telephone}`}>{selectedStore.telephone}</a></dd></div>
+                  <div className="contact-row"><dt><PhoneHandsetIcon /> Call</dt><dd><a href={`tel:${selectedStore.telephone}`}>{selectedStore.telephone}</a></dd></div>
                   <div><dt>PRICE</dt><dd>¥1,056,000 list</dd></div>
                 </dl>
                 <a href={selectedStore.sourceUrl} target="_blank" rel="noreferrer">OFFICIAL STORE PAGE ↗</a>
